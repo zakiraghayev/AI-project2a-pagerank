@@ -61,12 +61,33 @@ def transition_model(corpus, page, damping_factor):
     a link at random chosen from all pages in the corpus.
     """
 
-    default_P_per_page = (1 - damping_factor) / len(corpus)
+    # Number of pages in the corpus
+    N = len(corpus)
 
-    return {
-        i: default_P_per_page + damping_factor / len(corpus[i])
-        for i in corpus
-    }
+    # Probability distribution initialization
+    prob_dist = {pg: 0 for pg in corpus}
+
+    # Links from the current page
+    links = corpus[page]
+
+    # If the current page has no outgoing links,
+    # treat all pages as having equal probability
+    if len(links) == 0:
+        return {pg: 1/N for pg in corpus}
+
+    # Calculate probability for each page
+    for pg in corpus:
+        # Base probability for each page due to the random jump
+        prob_dist[pg] = (1 - damping_factor) / N
+
+        # Additional probability if the current page links to this page
+        if pg in links:
+            prob_dist[pg] += damping_factor / len(links)
+
+    for pg in corpus:
+        prob_dist[pg] = round(prob_dist[pg], 3)
+
+    return prob_dist
 
 
 def sample_pagerank(corpus, damping_factor, n):
@@ -78,7 +99,20 @@ def sample_pagerank(corpus, damping_factor, n):
     their estimated PageRank value (a value between 0 and 1). All
     PageRank values should sum to 1.
     """
-    raise NotImplementedError
+    pageranks = {page: 0 for page in corpus}
+    page = random.choice(list(corpus.keys()))
+
+    for _ in range(n):
+        distribution = transition_model(corpus, page, damping_factor)
+        page = random.choices(
+            list(distribution.keys()),
+            weights=distribution.values(),
+            k=1
+        )[0]
+        pageranks[page] += 1
+
+    pageranks = {page: rank / n for page, rank in pageranks.items()}
+    return pageranks
 
 
 def iterate_pagerank(corpus, damping_factor):
@@ -90,7 +124,45 @@ def iterate_pagerank(corpus, damping_factor):
     their estimated PageRank value (a value between 0 and 1). All
     PageRank values should sum to 1.
     """
-    raise NotImplementedError
+    THRESHOLD = 0.001
+
+    pageranks = {page: 1 / len(corpus) for page in corpus}
+
+    converged = False
+    while not converged:
+        new_pageranks = {
+            page: calculate_page_rank(
+                page,
+                damping_factor,
+                corpus,
+                pageranks
+            )
+            for page in corpus
+        }
+
+        converged = all(
+            abs(new_pageranks[page] - pageranks[page]) < THRESHOLD
+            for page in pageranks
+        )
+        # Update pageranks with new value
+        pageranks = new_pageranks
+
+    # Normalize the PageRank values
+    total_rank = sum(pageranks.values())
+    pageranks = {page: rank / total_rank for page, rank in pageranks.items()}
+
+    return pageranks
+
+
+def calculate_page_rank(page, damping_factor, corpus, pageranks):
+    return (
+        (1 - damping_factor) / len(corpus)
+        +
+        damping_factor * sum([
+            pageranks[pg] / len(corpus[pg])
+            for pg in corpus if page in corpus[pg]
+        ])
+    )
 
 
 if __name__ == "__main__":
