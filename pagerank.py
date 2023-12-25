@@ -61,14 +61,12 @@ def transition_model(corpus, page, damping_factor):
     a link at random chosen from all pages in the corpus.
     """
 
-    {
-        '4.html': {'2.html'}, 
-        '3.html': {'2.html', '4.html'}, 
-        '2.html': {'3.html', '1.html'}, 
-        '1.html': {'2.html'}
-    }
+    default_P_per_page = (1 - damping_factor) / len(corpus)
 
-    N = len(corpus)
+    return {
+        i: default_P_per_page + damping_factor / len(corpus[i])
+        for i in corpus
+    }
 
 
 def sample_pagerank(corpus, damping_factor, n):
